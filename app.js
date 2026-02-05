@@ -1,14 +1,21 @@
 const express = require('express')
 const app = express()
 const port = 3002
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+
+app.get('/', (req, res) => {
+  res.send('Hello World!')
+})
 
 app.get('/users', (req, res) => {
   const { name, lastname } = req.query
-  res.send(`Hola ${name} ${lastname}`)
+  res.send(`Holaaaaaa ${name} ${lastname}`)
 })
 
 app.post('/users', (req, res) => {
-  res.send('Got a POST request')
+  console.log(req)
+  res.json(req.body)
 })
 
 app.put('/users', (req, res) => {
