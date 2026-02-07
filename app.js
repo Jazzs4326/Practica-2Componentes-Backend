@@ -1,29 +1,78 @@
 const express = require('express')
+const fs = require('fs')
 const app = express()
 const port = 3002
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
+app.use(express.json())
+
+const getUsers = () => {
+  return JSON.parse(fs.readFileSync('users.json', 'utf8'))
+}
+
+const saveUsers = (users) => {
+  fs.writeFileSync('users.json', JSON.stringify(users, null, 2))
+}
 
 app.get('/users', (req, res) => {
-  const { name, lastname } = req.query
-  res.send(`Holaaaaaa ${name} ${lastname}`)
+  const users = getUsers()
+  res.json(users)
+})
+
+app.get('/users/:id', (req, res) => {
+  const users = getUsers()
+  const id = Number(req.params.id)
+
+  const user = users.find(u => u.id === id)
+
+  if (!user) {
+    return res.status(404).json({ error: 'Usuario no encontrado' })
+  }
+
+  res.json(user)
 })
 
 app.post('/users', (req, res) => {
-  console.log(req)
-  res.json(req.body)
+  const users = getUsers()
+  users.push(req.body)
+  saveUsers(users)
+
+  res.json({ message: 'Usuario agregado' })
 })
 
-app.put('/users', (req, res) => {
-  res.send('Got a PUT request at /user')
+app.put('/users/:id', (req, res) => {
+  const users = getUsers()
+  const id = Number(req.params.id)
+
+  const index = users.findIndex(u => u.id === id)
+
+  if (index === -1) {
+    return res.status(404).json({ error: 'Usuario no encontrado' })
+  }
+
+  users[index] = {
+    ...users[index],
+    ...req.body
+  }
+  saveUsers(users)
+
+  res.json({ message: 'Usuario actualizado' })
+
 })
 
-app.delete('/users', (req, res) => {
-  res.send('Got a DELETE request at /user')
+app.delete('/users/:id', (req, res) => {
+  const users = getUsers()
+  const id = Number(req.params.id)
+
+  const index = users.findIndex(u => u.id === id)
+
+  if (index === -1) {
+    return res.status(404).json({ error: 'Usuario no encontrado' })
+  }
+
+  users.splice(index, 1)
+  saveUsers(users)
+
+  res.json({ message: 'Usuario eliminado' })
 })
 
 app.use((req, res) => {
@@ -31,5 +80,5 @@ app.use((req, res) => {
 })
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
+  console.log(`Servidor corriendo en puerto ${port}`)
 })
