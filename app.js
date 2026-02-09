@@ -1,28 +1,31 @@
 const express = require('express')
-const fs = require('fs')
+const { MongoClient, ObjectId } = require('mongodb')
 const app = express()
 const port = 3002
 
 app.use(express.json())
 
-const getUsers = () => {
-  return JSON.parse(fs.readFileSync('users.json', 'utf8'))
+const url = 'mongodb://localhost:27017'
+const client = new MongoClient(url)
+const dbName = 'practica'
+
+async function connectDB() {
+  await client.connect()
+  console.log('Conectado a MongoDB')
+  return client.db(dbName)
 }
 
-const saveUsers = (users) => {
-  fs.writeFileSync('users.json', JSON.stringify(users, null, 2))
-}
-
-app.get('/users', (req, res) => {
-  const users = getUsers()
+app.get('/users', async (req, res) => {
+  const db = await connectDB()
+  const users = await db.collection('users').find().toArray()
   res.json(users)
 })
 
-app.get('/users/:id', (req, res) => {
-  const users = getUsers()
-  const id = Number(req.params.id)
+app.get('/users/:id', async (req, res) => {
+  const db = await connectDB()
+  const id = req.params.id
 
-  const user = users.find(u => u.id === id)
+  const user = await db.collection('users').findOne({ _id: new ObjectId(id) })
 
   if (!user) {
     return res.status(404).json({ error: 'Usuario no encontrado' })
@@ -31,46 +34,38 @@ app.get('/users/:id', (req, res) => {
   res.json(user)
 })
 
-app.post('/users', (req, res) => {
-  const users = getUsers()
-  users.push(req.body)
-  saveUsers(users)
+app.post('/users', async (req, res) => {
+  const db = await connectDB()
+  await db.collection('users').insertOne(req.body)
 
   res.json({ message: 'Usuario agregado' })
 })
 
-app.put('/users/:id', (req, res) => {
-  const users = getUsers()
-  const id = Number(req.params.id)
+app.put('/users/:id', async (req, res) => {
+  const db = await connectDB()
+  const id = req.params.id
 
-  const index = users.findIndex(u => u.id === id)
+  const result = await db.collection('users').updateOne(
+    { _id: new ObjectId(id) },
+    { $set: req.body }
+  )
 
-  if (index === -1) {
+  if (result.matchedCount === 0) {
     return res.status(404).json({ error: 'Usuario no encontrado' })
   }
-
-  users[index] = {
-    ...users[index],
-    ...req.body
-  }
-  saveUsers(users)
 
   res.json({ message: 'Usuario actualizado' })
-
 })
 
-app.delete('/users/:id', (req, res) => {
-  const users = getUsers()
-  const id = Number(req.params.id)
+app.delete('/users/:id', async (req, res) => {
+  const db = await connectDB()
+  const id = req.params.id
 
-  const index = users.findIndex(u => u.id === id)
+  const result = await db.collection('users').deleteOne({ _id: new ObjectId(id) })
 
-  if (index === -1) {
+  if (result.deletedCount === 0) {
     return res.status(404).json({ error: 'Usuario no encontrado' })
   }
-
-  users.splice(index, 1)
-  saveUsers(users)
 
   res.json({ message: 'Usuario eliminado' })
 })
